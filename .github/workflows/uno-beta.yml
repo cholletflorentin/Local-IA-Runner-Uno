@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - '**'
-      - '!UnoApp/**'
       - '.github/workflows/uno-beta.yml'
   workflow_dispatch:
 
