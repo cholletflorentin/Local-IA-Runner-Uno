@@ -6,6 +6,7 @@ Ce dépôt contient le code source de la bêta indépendante Uno Platform de Loc
 
 - Une interface commune pour Windows, Linux, macOS et Android, écrite en C# et XAML avec Uno Platform.
 - Une liste de discussions enregistrée localement, avec réponses en streaming et bouton d'annulation.
+- Un mode de comparaison qui affiche en parallèle les réponses de deux modèles distincts.
 - Une connexion à un serveur compatible avec l'API OpenAI de llama.cpp (`/v1/models` et `/v1/chat/completions`).
 - Une adresse de serveur et une clé API configurables depuis l'application.
 - Les archives desktop incluent le moteur CPU llama.cpp b12676 et un petit lanceur pour démarrer le serveur.
@@ -29,6 +30,8 @@ Sur Windows, Linux et macOS, saisis le chemin complet d'un modèle GGUF, clique 
 
 Sur Android, `127.0.0.1` désigne le téléphone lui-même. Pour joindre un serveur sur un autre ordinateur, indique son adresse IP locale et configure llama.cpp pour accepter les connexions du réseau local. L'application n'accepte HTTP que pour localhost et les adresses privées; les adresses publiques doivent utiliser HTTPS. N'expose pas un serveur sans authentification sur un réseau public.
 
+Pour comparer deux modèles, connecte-toi à un serveur compatible qui expose au moins deux modèles distincts dans `/v1/models`, active **Comparer deux modèles**, puis choisis le second modèle. Le modèle sélectionné dans la liste principale est le premier; les deux réponses sont générées en parallèle et enregistrées côte à côte. Le moteur local inclus ne sert qu'un seul GGUF à la fois, donc utilise un serveur qui expose plusieurs modèles pour cette fonction.
+
 ## Installer les versions bêta
 
 Télécharge les paquets depuis la dernière préversion GitHub intitulée **Local IA Runner — bêta Uno Platform**. Cette bêta est distincte de la version WinForms stable.
@@ -41,3 +44,4 @@ Télécharge les paquets depuis la dernière préversion GitHub intitulée **Loc
 L'APK est signé avec une clé temporaire de compilation; désinstalle une bêta précédente avant d'installer la suivante.
 
 Pour développer avec le projet, installer le SDK .NET 10 et suivre les prérequis Uno Platform pour Android. Le projet est ciblé par `global.json` avec `Uno.Sdk` 6.7.30.
+

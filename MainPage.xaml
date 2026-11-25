@@ -15,6 +15,10 @@
                 <Button x:Name="RefreshModelsButton" Grid.Column="2" Content="Actualiser" Click="OnRefreshModelsClick" VerticalAlignment="Center" />
                 <Button x:Name="NewChatButton" Grid.Column="3" Content="Nouvelle discussion" Click="OnNewChatClick" VerticalAlignment="Center" />
             </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <CheckBox x:Name="CompareModeCheckBox" Content="Comparer deux modèles" Checked="OnCompareModeChanged" Unchecked="OnCompareModeChanged" />
+                <ComboBox x:Name="CompareModelPicker" MinWidth="180" PlaceholderText="Deuxième modèle" IsEnabled="False" />
+            </StackPanel>
             <Grid x:Name="ConnectionGrid" ColumnDefinitions="*,180,Auto" ColumnSpacing="8">
                 <TextBox x:Name="EndpointBox" PlaceholderText="Adresse du serveur, ex. http://127.0.0.1:8080" />
                 <PasswordBox x:Name="ApiKeyBox" Grid.Column="1" PlaceholderText="Clé API (facultative)" />
@@ -63,6 +67,16 @@
                                 <StackPanel Spacing="5">
                                     <TextBlock Text="{Binding Role}" FontWeight="SemiBold" Foreground="#AFC8FF" />
                                     <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding ModelA}" FontWeight="SemiBold" Foreground="#AFC8FF" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding AnswerA}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="5">
+                                            <TextBlock Text="{Binding ModelB}" FontWeight="SemiBold" Foreground="#AFC8FF" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding AnswerB}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -79,3 +93,4 @@
         <TextBlock x:Name="MobileStatusText" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Foreground="#9AA4B2" Text="Prêt" TextWrapping="Wrap" />
     </Grid>
 </Page>
+

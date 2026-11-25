@@ -138,6 +138,18 @@ public sealed partial class MainPage : Page
         PromptBox.Focus(FocusState.Programmatic);
     }
 
+    private void OnCompareModeChanged(object sender, RoutedEventArgs e) => UpdateCompareModeControls();
+
+    private void UpdateCompareModeControls()
+    {
+        var enabled = CompareModeCheckBox.IsChecked == true;
+        CompareModelPicker.IsEnabled = enabled && _models.Count > 1;
+        if (enabled && CompareModelPicker.SelectedItem is null && _models.Count > 1)
+            CompareModelPicker.SelectedIndex = 1;
+        if (enabled && _models.Count < 2)
+            SetStatus("La comparaison nécessite deux modèles distincts. Connecte un serveur qui en expose au moins deux.");
+    }
+
     private async void OnConnectClick(object sender, RoutedEventArgs e)
     {
         if (_generationCts is not null || _isPreparingRequest)
@@ -186,6 +198,7 @@ public sealed partial class MainPage : Page
             var body = await response.Content.ReadAsStringAsync();
             response.EnsureSuccessStatusCode();
             using var document = JsonDocument.Parse(body);
+            var preferredComparisonModel = CompareModelPicker.SelectedItem as string;
             _models.Clear();
             if (document.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
             {
@@ -194,6 +207,13 @@ public sealed partial class MainPage : Page
                         _models.Add(model);
             }
             if (_models.Count > 0) ModelPicker.SelectedIndex = 0;
+            CompareModelPicker.ItemsSource = null;
+            CompareModelPicker.ItemsSource = _models;
+            var preferredIndex = preferredComparisonModel is null ? -1 : _models.IndexOf(preferredComparisonModel);
+            CompareModelPicker.SelectedIndex = preferredIndex >= 0
+                ? preferredIndex
+                : _models.Count > 1 ? 1 : _models.Count == 1 ? 0 : -1;
+            UpdateCompareModeControls();
             SetStatus(_models.Count == 0 ? "Connecté, mais aucun modèle n’a été retourné." : $"Connecté · {_models.Count} modèle(s) disponible(s).");
             await SaveStateAsync();
             return true;
@@ -357,6 +377,15 @@ public sealed partial class MainPage : Page
             if (_generationCts is null)
                 SendButton.IsEnabled = true;
         }
+        var compareModels = CompareModeCheckBox.IsChecked == true;
+        var selectedModel = ModelPicker.SelectedItem as string ?? _models.FirstOrDefault() ?? "default";
+        var comparisonModel = CompareModelPicker.SelectedItem as string;
+        if (compareModels && (string.IsNullOrWhiteSpace(comparisonModel) ||
+            string.Equals(selectedModel, comparisonModel, StringComparison.Ordinal)))
+        {
+            SetStatus("Choisis deux modèles distincts pour lancer la comparaison.");
+            return;
+        }
         if (_activeConversation is null)
         {
             _activeConversation = new Conversation();
@@ -372,7 +401,14 @@ public sealed partial class MainPage : Page
         _activeConversation.UpdatedAt = DateTime.UtcNow;
         PromptBox.Text = "";
 
-        var assistantMessage = new ChatMessage { Role = "assistant", Content = "" };
+        var assistantMessage = new ChatMessage
+        {
+            Role = "assistant",
+            Content = "",
+            IsComparison = compareModels,
+            ModelA = compareModels ? selectedModel : "",
+            ModelB = compareModels ? comparisonModel ?? "" : ""
+        };
         _activeConversation.History.Add(assistantMessage);
         Messages.Add(assistantMessage);
         _generationCts = new CancellationTokenSource();
@@ -384,20 +420,35 @@ public sealed partial class MainPage : Page
 
         try
         {
-            await StreamCompletionAsync(_activeConversation, assistantMessage, _generationCts.Token);
-            if (assistantMessage.Content.Length == 0)
+            if (compareModels)
+            {
+                SetStatus("Comparaison en cours : les deux modèles répondent en parallèle…");
+                await Task.WhenAll(
+                    StreamCompletionAsync(_activeConversation, assistantMessage, selectedModel, false, _generationCts.Token),
+                    StreamCompletionAsync(_activeConversation, assistantMessage, comparisonModel!, true, _generationCts.Token));
+            }
+            else
+            {
+                await StreamCompletionAsync(_activeConversation, assistantMessage, selectedModel, false, _generationCts.Token);
+            }
+            if ((compareModels ? assistantMessage.AnswerA.Length : assistantMessage.Content.Length) == 0 && assistantMessage.AnswerB.Length == 0)
                 _activeConversation.History.Remove(assistantMessage);
-            SetStatus("Génération terminée.");
+            SetStatus(compareModels ? "Comparaison terminée." : "Génération terminée.");
         }
         catch (OperationCanceledException)
         {
-            if (assistantMessage.Content.Length == 0)
+            if ((compareModels ? assistantMessage.AnswerA.Length : assistantMessage.Content.Length) == 0 && assistantMessage.AnswerB.Length == 0)
                 _activeConversation.History.Remove(assistantMessage);
-            SetStatus("Génération annulée.");
+            SetStatus(compareModels ? "Comparaison annulée." : "Génération annulée.");
         }
         catch (Exception ex)
         {
-            assistantMessage.Content = "Erreur de génération : " + ex.Message;
+            var error = "Erreur de génération : " + ex.Message;
+            if (compareModels)
+            {
+                if (assistantMessage.AnswerA.Length == 0) assistantMessage.AnswerA = error;
+            }
+            else assistantMessage.Content = error;
             SetStatus("La requête a échoué.");
         }
         finally
@@ -412,12 +463,11 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async Task StreamCompletionAsync(Conversation conversation, ChatMessage assistantMessage, CancellationToken cancellationToken)
+    private async Task StreamCompletionAsync(Conversation conversation, ChatMessage assistantMessage, string model, bool comparisonSideB, CancellationToken cancellationToken)
     {
-        var model = ModelPicker.SelectedItem as string ?? _models.FirstOrDefault() ?? "default";
         var messages = conversation.History
             .Where(m => !ReferenceEquals(m, assistantMessage))
-            .Select(m => new { role = m.Role, content = m.Content })
+            .Select(m => new { role = m.Role, content = m.IsComparison ? m.AnswerA : m.Content })
             .ToArray();
         using var request = new HttpRequestMessage(HttpMethod.Post, BuildApiUrl("chat/completions"))
         {
@@ -453,7 +503,15 @@ public sealed partial class MainPage : Page
             };
             if (!string.IsNullOrEmpty(fragment))
             {
-                assistantMessage.Content += fragment;
+                if (comparisonSideB)
+                    assistantMessage.AnswerB += fragment;
+                else
+                {
+                    if (assistantMessage.IsComparison)
+                        assistantMessage.AnswerA += fragment;
+                    else
+                        assistantMessage.Content += fragment;
+                }
                 ScrollToBottom();
             }
         }
@@ -597,3 +655,4 @@ public sealed partial class MainPage : Page
     private static string Shorten(string value, int maximum) =>
         value.Length <= maximum ? value : value[..maximum] + "…";
 }
+

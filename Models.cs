@@ -6,8 +6,13 @@ namespace LocalIARunner.Uno;
 public sealed class ChatMessage : INotifyPropertyChanged
 {
     private string _content = "";
+    private string _answerA = "";
+    private string _answerB = "";
 
     public string Role { get; set; } = "user";
+    public bool IsComparison { get; set; }
+    public string ModelA { get; set; } = "";
+    public string ModelB { get; set; } = "";
     public string Content
     {
         get => _content;
@@ -15,6 +20,28 @@ public sealed class ChatMessage : INotifyPropertyChanged
         {
             if (_content == value) return;
             _content = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string AnswerA
+    {
+        get => _answerA;
+        set
+        {
+            if (_answerA == value) return;
+            _answerA = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string AnswerB
+    {
+        get => _answerB;
+        set
+        {
+            if (_answerB == value) return;
+            _answerB = value;
             OnPropertyChanged();
         }
     }
@@ -56,3 +83,4 @@ public sealed class AppState
     public string LocalModelName { get; set; } = "";
     public List<Conversation> Conversations { get; set; } = [];
 }
+
