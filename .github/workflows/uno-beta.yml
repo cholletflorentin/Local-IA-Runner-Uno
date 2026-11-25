@@ -223,9 +223,7 @@ jobs:
 
           ### Nouveautés
           NOTES
-            if [ -n "$release_subject" ]; then
-              printf '%s\n' "- $release_subject"
-            fi
+            printf '%s\n' "- $release_subject"
             if [ -n "$commit_body" ]; then
               printf '\n%s\n' "$commit_body"
             fi
@@ -239,10 +237,22 @@ jobs:
           Sur Windows, Linux et macOS, saisis le chemin complet d'un GGUF et clique sur Actualiser : l'application démarre le serveur inclus, puis charge les modèles. Les scripts `run-llama-server.cmd` et `run-llama-server.sh` restent disponibles. Sur Android, choisis un GGUF dans l'application; llama.cpp s'extrait de l'APK et démarre avec Actualiser ou au premier message. Le GGUF n'est pas inclus dans l'APK. L'application Uno ne contient pas encore le backend Python, stable-diffusion.cpp, les outils, le forum ni les sous-agents. L'APK de test est signé avec une clé temporaire; désinstalle la bêta précédente avant de l'installer.
           NOTES
           } > release-notes.md
+          publish_failure() {
+            local output="$1"
+            local detail="${output%%$'\n'*}"
+            printf '::error title=GitHub beta release failed::%s\n' "$detail"
+            { printf '%s\n\n%s\n' '## GitHub beta release failed' '```text'; printf '%s\n' "$output"; printf '%s\n' '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "Local IA Runner — bêta Uno Platform ${GITHUB_RUN_NUMBER}" --notes-file release-notes.md --prerelease
+            if ! publish_output=$(gh release upload "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber 2>&1); then
+              publish_failure "$publish_output"
+            fi
+            if ! publish_output=$(gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "Local IA Runner — bêta Uno Platform ${GITHUB_RUN_NUMBER}" --notes-file release-notes.md --prerelease 2>&1); then
+              publish_failure "$publish_output"
+            fi
           else
-            gh release create "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --title "Local IA Runner — bêta Uno Platform ${GITHUB_RUN_NUMBER}" --notes-file release-notes.md --prerelease --target "$GITHUB_SHA"
+            if ! publish_output=$(gh release create "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --title "Local IA Runner — bêta Uno Platform ${GITHUB_RUN_NUMBER}" --notes-file release-notes.md --prerelease --target "$GITHUB_SHA" 2>&1); then
+              publish_failure "$publish_output"
+            fi
           fi
-
