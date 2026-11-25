@@ -214,7 +214,7 @@ jobs:
           tag="uno-v0.1.0-beta.${GITHUB_RUN_NUMBER}"
           commit_subject="$(git log -1 --format=%s "$GITHUB_SHA")"
           commit_body="$(git log -1 --format=%b "$GITHUB_SHA")"
-          release_subject="${commit_subject#\\[publish-beta\\] }"
+          release_subject="$(printf '%s' "$commit_subject" | sed 's/^\[publish-beta\] //')"
           {
             cat <<'NOTES'
           ## Local IA Runner — bêta Uno Platform
@@ -224,10 +224,10 @@ jobs:
           ### Nouveautés
           NOTES
             if [ -n "$release_subject" ]; then
-              printf '%s\\n' "- $release_subject"
+              printf '%s\n' "- $release_subject"
             fi
             if [ -n "$commit_body" ]; then
-              printf '\\n%s\\n' "$commit_body"
+              printf '\n%s\n' "$commit_body"
             fi
             cat <<'NOTES'
 
