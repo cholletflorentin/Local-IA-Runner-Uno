@@ -5,7 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'UnoApp/**'
+      - '**'
+      - '!**'
       - '.github/workflows/uno-beta.yml'
   workflow_dispatch:
 
@@ -55,10 +56,10 @@ jobs:
       - name: Set up .NET 10 and Uno SDK
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: UnoApp/global.json
+          global-json-file: global.json
 
       - name: Publish desktop app
-        working-directory: UnoApp
+        working-directory: .
         run: dotnet publish LocalIARunner.Uno.csproj -c Release -f net10.0-desktop -r ${{ matrix.rid }} -p:TargetFrameworks=net10.0-desktop -p:SelfContained=true -p:UseMonoRuntime=false -o "${{ runner.temp }}/uno-publish"
 
       - name: Bundle llama.cpp b12676
@@ -93,11 +94,11 @@ jobs:
               Copy-Item -LiteralPath $runtimeSource -Destination $server.DirectoryName -Force
             }
           }
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'UnoApp/llama.cpp-LICENSE.txt') -Destination (Join-Path $engineDirectory 'LICENSE-llama.cpp.txt')
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'UnoApp/run-llama-server.cmd') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'UnoApp/run-llama-server.sh') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'UnoApp/README.md') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'UnoApp/THIRD-PARTY-NOTICES.txt') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'llama.cpp-LICENSE.txt') -Destination (Join-Path $engineDirectory 'LICENSE-llama.cpp.txt')
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'run-llama-server.cmd') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'run-llama-server.sh') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'README.md') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'THIRD-PARTY-NOTICES.txt') -Destination (Join-Path '${{ runner.temp }}' 'uno-publish')
 
       - name: Package desktop app
         shell: pwsh
@@ -130,26 +131,26 @@ jobs:
       - name: Set up .NET 10 and Uno SDK
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: UnoApp/global.json
+          global-json-file: global.json
 
       - name: Install .NET Android workload
-        working-directory: UnoApp
+        working-directory: .
         run: dotnet workload install android
 
       - name: Bundle llama.cpp b12676 into the APK
         shell: pwsh
         run: |
-          $assetDirectory = Join-Path $env:GITHUB_WORKSPACE 'UnoApp/Assets'
+          $assetDirectory = Join-Path $env:GITHUB_WORKSPACE 'Assets'
           New-Item -ItemType Directory -Force -Path $assetDirectory | Out-Null
           $archivePath = Join-Path $assetDirectory 'llama-b12676-android-arm64.tar.gz'
           Invoke-WebRequest -Uri 'https://github.com/ggml-org/llama.cpp/releases/download/b12676/llama-b12676-bin-android-arm64.tar.gz' -OutFile $archivePath
           $actualSha256 = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualSha256 -ne 'b357eab59d818f4f25f6908d4ea1d3142710c5a2c9fd5755d1e66f297a140dcc') { throw 'llama.cpp Android archive hash mismatch.' }
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'UnoApp/llama.cpp-LICENSE.txt') -Destination (Join-Path $assetDirectory 'llama.cpp-LICENSE.txt')
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'llama.cpp-LICENSE.txt') -Destination (Join-Path $assetDirectory 'llama.cpp-LICENSE.txt')
 
       - name: Sign and publish installable beta APK
         shell: pwsh
-        working-directory: UnoApp
+        working-directory: .
         run: |
           $keyPath = Join-Path '${{ runner.temp }}' 'uno-beta.keystore'
           $password = [Guid]::NewGuid().ToString('N')
