@@ -198,6 +198,9 @@ jobs:
     needs: [desktop, android]
     runs-on: ubuntu-latest
     steps:
+      - name: Check out source for release notes
+        uses: actions/checkout@v7
+
       - name: Download build packages
         uses: actions/download-artifact@v4
         with:
@@ -209,21 +212,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="uno-v0.1.0-beta.${GITHUB_RUN_NUMBER}"
-          cat > release-notes.md <<'NOTES'
+          commit_subject="$(git log -1 --format=%s "$GITHUB_SHA")"
+          commit_body="$(git log -1 --format=%b "$GITHUB_SHA")"
+          release_subject="${commit_subject#\\[publish-beta\\] }"
+          {
+            cat <<'NOTES'
           ## Local IA Runner — bêta Uno Platform
 
           Version mise à jour de l'application multi-plateforme Uno, publiée séparément de la version WinForms stable.
 
-          ### Téléchargements
-          - Windows x64, Linux x64 et macOS x64/ARM64 : archives portables de l'interface Uno avec llama.cpp b12676 CPU, démarré par le bouton Actualiser après sélection d'un fichier GGUF.
-          - Android : APK de test avec l'archive llama.cpp b12676 pour Android ARM64 intégrée.
+          ### Nouveautés
+          NOTES
+            if [ -n "$release_subject" ]; then
+              printf '%s\\n' "- $release_subject"
+            fi
+            if [ -n "$commit_body" ]; then
+              printf '\\n%s\\n' "$commit_body"
+            fi
+            cat <<'NOTES'
 
-          ### Correctifs
-          - Android : le thème de l'activité hérite maintenant d'AppCompat, comme l'exige Uno Platform.
+          ### Téléchargements
+          - Windows x64, Linux x64 et macOS x64/ARM64 : archives portables de l'interface Uno avec llama.cpp b12676 CPU.
+          - Android : APK de test avec llama.cpp b12676 ARM64 intégré.
 
           ### À savoir
-          Sur Windows, Linux et macOS, saisis le chemin complet d'un GGUF et clique sur Actualiser : l'application démarre le serveur inclus, puis charge la liste des modèles. Les scripts `run-llama-server.cmd` et `run-llama-server.sh` restent disponibles pour un démarrage manuel. Sur Android, choisis un GGUF dans l'application : llama-server b12676 ARM64 s'extrait de l'APK et démarre au clic sur Actualiser ou au premier message, puis reste actif tant que l'application est ouverte. Le GGUF n'est pas inclus dans l'APK et est copié dans l'espace privé de l'application. L'intégration du backend Python, de stable-diffusion.cpp, des outils, du forum, des sous-agents et des réglages avancés n'est pas encore portée dans l'application Uno. L'APK de test est signé avec une clé temporaire; il faut désinstaller l'ancienne bêta Android avant d'installer celle-ci.
+          Sur Windows, Linux et macOS, saisis le chemin complet d'un GGUF et clique sur Actualiser : l'application démarre le serveur inclus, puis charge les modèles. Les scripts `run-llama-server.cmd` et `run-llama-server.sh` restent disponibles. Sur Android, choisis un GGUF dans l'application; llama.cpp s'extrait de l'APK et démarre avec Actualiser ou au premier message. Le GGUF n'est pas inclus dans l'APK. L'application Uno ne contient pas encore le backend Python, stable-diffusion.cpp, les outils, le forum ni les sous-agents. L'APK de test est signé avec une clé temporaire; désinstalle la bêta précédente avant de l'installer.
           NOTES
+          } > release-notes.md
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "Local IA Runner — bêta Uno Platform ${GITHUB_RUN_NUMBER}" --notes-file release-notes.md --prerelease
