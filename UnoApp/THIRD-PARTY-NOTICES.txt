@@ -1,5 +1,0 @@
-Local IA Runner Uno includes the following third-party engine in desktop packages and the Android APK:
-
-llama.cpp b12676
-  MIT License. Desktop packages include llama-bin\LICENSE-llama.cpp.txt; the Android APK includes the license in its assets.
-
